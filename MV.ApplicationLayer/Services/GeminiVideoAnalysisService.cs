@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MV.ApplicationLayer.Helpers;
 using MV.ApplicationLayer.ServiceInterfaces;
 using MV.DomainLayer.Configuration;
 using MV.DomainLayer.DTO.ResponseModel;
@@ -259,53 +260,50 @@ public class GeminiVideoAnalysisService : IGeminiVideoAnalysisService
         }
     }
 
-    public async Task<TutorReportAiFillResult> GenerateTutorReportFieldsAsync(string fileUri, string mimeType, CancellationToken ct = default)
+    public async Task<TutorReportAiFillResult> GenerateTutorReportFieldsAsync(
+        string fileUri, string mimeType, TutorReportContext? context = null, CancellationToken ct = default)
     {
-        const string prompt = """
-            Bạn là trợ lý giúp gia sư viết báo cáo sau buổi học 1-kèm-1, dựa trên bản ghi âm buổi học.
-            Hãy nghe kỹ và trả về các nội dung sau, viết bằng tiếng Việt.
-            PHẦN 1 — BÁO CÁO GỬI PHỤ HUYNH, ở góc nhìn của gia sư viết cho phụ huynh/học sinh đọc:
-            - lessonContent: Nội dung đã dạy trong buổi học.
-            - homework: Bài tập về nhà đã giao cho học sinh — CHỈ ghi đúng những gì gia sư THẬT SỰ nói trong
-              audio, tuyệt đối không tự suy đoán hay bịa thêm bài tập không được nhắc tới. Nếu audio KHÔNG đề
-              cập gì tới việc giao bài tập, PHẢI ghi rõ "Không đề cập giao bài tập." — không tự suy ra là gia
-              sư không giao bài (có thể audio bị cắt/không nghe rõ đoạn đó), chỉ nói đúng sự thật là không
-              nghe thấy đề cập. Tuyệt đối không để trống hay chỉ viết vài chữ ngắn.
-            - tutorNotes: Ghi chú thêm của gia sư về buổi học (thái độ học, điểm cần cải thiện...) — CHỈ ghi
-              đúng những gì THẬT SỰ quan sát/nghe được trong audio (ví dụ gia sư có nhận xét trực tiếp, hoặc
-              thái độ/hành vi học sinh thể hiện rõ ràng qua lời nói), tuyệt đối không tự suy đoán hay bịa thêm
-              nhận xét chung chung không có căn cứ từ audio. Nếu audio KHÔNG có gì để nhận xét thêm, PHẢI ghi
-              rõ "Không đề cập gì thêm." — không bịa ra nhận xét nghe có vẻ hợp lý nhưng thực chất không dựa
-              trên nội dung buổi học. Tuyệt đối không để trống hay chỉ viết vài chữ ngắn.
+        // Prompt v3 (2026-09-29): biên bản chỉ ghi dạng bài và kiến thức, không chép đề bài/con số — các lần
+        // thử cho thấy model hay nghe nhầm hoặc bịa đề, và audio không chứa đề chỉ hiện trên màn hình.
+        const string instructions = """
+            Bạn là trợ lý của gia sư trên nền tảng Tutora. Nghe kỹ toàn bộ bản ghi âm buổi học 1 kèm 1 và trả về JSON theo schema, viết bằng tiếng Việt.
 
-            PHẦN 2 — sessionMinutes: BIÊN BẢN BUỔI HỌC dành riêng cho GIA SƯ tự xem lại (không gửi phụ
-            huynh), viết ngắn gọn, đi thẳng vào ý, dạng ghi chú nhanh. Buổi học dài cũng chỉ tóm tắt ngắn,
-            KHÔNG kể lại diễn biến từng phút, không vượt quá số lượng dưới đây:
-            - summary: 2–4 câu tóm tắt buổi học (học gì, học sinh tiếp thu thế nào).
-            - keyPoints: 3–6 ý chính đã dạy/thảo luận, mỗi ý một câu ngắn (không quá ~20 chữ).
-            - followUps: 0–5 việc gia sư cần làm/nhớ cho buổi sau (ví dụ: kiểm tra bài tập đã giao, ôn lại
-              phần học sinh còn yếu, chuẩn bị tài liệu đã hứa). Mỗi việc một câu ngắn. CHỈ ghi những việc có
-              căn cứ từ audio — nếu không có gì thì trả về mảng rỗng, không bịa ra.
+            QUY TẮC CHUNG (áp dụng cho mọi phần):
+            - CHỈ ghi điều thật sự có trong audio. Không suy đoán, không bịa. Phần nào không có căn cứ thì để trống (mảng rỗng) hoặc ghi đúng câu mặc định được chỉ định.
+            - KHÔNG chép đề bài, công thức hay con số của bài tập ở bất kỳ phần nào. Chỉ ghi DẠNG BÀI và NỘI DUNG KIẾN THỨC (ví dụ "bất phương trình bậc nhất có chuyển vế", "rút gọn biểu thức chứa căn"), viết bằng lời.
+            - Viết cụ thể về kiến thức và kỹ năng: dạng bài nào, bước nào làm được, bước nào sai (ví dụ "quên đổi chiều khi chia hai vế cho số âm"). Tránh câu chung chung như "con học tốt", "nắm được bài", "hợp tác tốt", "buổi học diễn ra tích cực" nếu không kèm dẫn chứng cụ thể.
+            - Không nhắc tới các buổi học trước — bạn chỉ có thông tin của buổi này.
+            - Không khẳng định tiến bộ dài hạn ("con tiến bộ rõ rệt", "chắc chắn đạt điểm cao"). Chỉ nói điều thấy được trong buổi này.
+            - Bỏ qua: chuyện phiếm không liên quan đến việc học, thủ tục, vấn đề kỹ thuật (âm thanh, mạng, thiết bị). Thay đổi lịch học thì ghi vào followUps. KHÔNG ghi thông tin cá nhân nhạy cảm (sức khoẻ, chuyện gia đình, tài chính, tôn giáo) dù có nghe thấy.
+            - Không viết tắt ("Học sinh", "bài tập", "phương trình"; không "HS", "BT", "PT"). Gọi học sinh là "con" trong phần gửi phụ huynh, "học sinh" trong phần cho gia sư; gọi người dạy là "gia sư". Không dùng từ chỉ giới tính.
 
-            PHẦN 3 — zaloSummary: BẢN TÓM TẮT GỬI PHỤ HUYNH QUA TIN ZALO (hiển thị trong một ô bảng rất
-            hẹp). Rút gọn từ PHẦN 1, gồm:
-            - content: tóm tắt nội dung đã dạy.
-            - homework: bài tập về nhà — CHỈ ghi bài tập gia sư THẬT SỰ giao trong audio. Nếu không có,
-              PHẢI ghi chính xác "Không có bài tập về nhà."
-            - notes: nhận xét về buổi học — CHỈ ghi điều THẬT SỰ quan sát/nghe được trong audio. Nếu không
-              có, PHẢI ghi chính xác "Không có nhận xét thêm."
-            Quy tắc BẮT BUỘC cho cả 3 field:
-            - Mỗi field 1–2 câu tiếng Việt hoàn chỉnh, dài khoảng 100–160 ký tự và TUYỆT ĐỐI KHÔNG quá
-              180 ký tự (đếm cả dấu cách). Câu phải trọn ý, không bị bỏ lửng giữa chừng. Nội dung ít thì
-              viết ngắn hơn, không kéo dài cho đủ độ dài.
-            - Phụ huynh CHỈ đọc được phần này qua tin Zalo (không có bản đầy đủ), nên chọn đúng ý quan
-              trọng nhất: học gì, con làm được/chưa được gì, cần làm gì tiếp.
-            - Chỉ văn bản thuần: không markdown (không #, *, -, gạch đầu dòng), không công thức LaTeX hay ký
-              hiệu $, không emoji, không xuống dòng.
-            - Không viết tắt (viết đầy đủ "Học sinh", "bài tập", "phương trình"... không viết "HS", "BT", "PT").
-            - Gọi học sinh là "con", không dùng từ chỉ giới tính (không "bạn nam", "cô bé", "cậu bé"...).
+            PHẦN 1 — BÁO CÁO ĐẦY ĐỦ (gia sư xem và sửa trước khi gửi phụ huynh):
+            - lessonContent: Hôm nay con học chủ đề gì và làm gì trong buổi (giảng lý thuyết, luyện những dạng bài nào, khoảng bao nhiêu bài). Số bài phải khớp với số mục trong sessionMinutes.exercises. 2–4 câu.
+            - homework: Bài tập về nhà gia sư THẬT SỰ giao (dạng bài, số lượng). Nếu audio không nhắc tới, ghi đúng: "Không đề cập giao bài tập."
+            - tutorNotes: Một điều con làm tốt và một điều con cần cải thiện, đều cụ thể và có trong buổi học; thêm việc gia sư sẽ làm tiếp nếu gia sư có nói. Nếu không có căn cứ, ghi đúng: "Không đề cập gì thêm."
+
+            PHẦN 2 — sessionMinutes: BIÊN BẢN cho GIA SƯ đọc lại thay vì nghe lại cả buổi. Chi tiết về nội dung và cách học của học sinh, nhưng không thừa: mọi ý phải giúp gia sư dạy buổi sau tốt hơn.
+            - summary: 3–5 câu: mục tiêu buổi học, diễn biến chính, kết quả.
+            - sections: diễn biến theo thứ tự thời gian, 2–8 phần. Mỗi phần: title (ngắn, ví dụ "Ôn quy tắc chuyển vế") và details 1–6 ý: kiến thức hoặc dạng bài, gia sư giải thích thế nào, học sinh phản ứng ra sao (trả lời đúng/sai, hỏi lại điều gì).
+            - exercises: liệt kê TẤT CẢ các bài/câu đã làm trong buổi theo thứ tự, tối đa 15. Mỗi bài: type (dạng bài, viết bằng lời, không chép đề), result (một trong: "Tự làm đúng", "Đúng sau khi được gợi ý", "Làm sai", "Chưa làm xong", "Gia sư làm mẫu"), note (học sinh vướng ở bước nào hoặc gia sư gợi ý gì; để trống nếu không có).
+            - strengths: tối đa 5 điều học sinh đã nắm về kiến thức/kỹ năng, mỗi ý kèm dẫn chứng (ví dụ "tự quy đồng và khử mẫu đúng ở các bài có phân thức").
+            - difficulties: tối đa 5 chỗ học sinh còn sai hoặc chưa hiểu, nêu đúng bước sai (ví dụ "quên đổi chiều bất phương trình khi chia hai vế cho số âm").
+            - usefulNotes: tối đa 6 thông tin không hẳn là bài giảng nhưng có ích cho việc dạy: mẹo và kinh nghiệm học, làm bài, đi thi được nhắc tới; lịch kiểm tra, điểm số ở trường; cách học, thói quen, sở thích, động lực của học sinh ảnh hưởng tới việc học.
+            - teachingNotes: 0–3 nhận xét về CÁCH DẠY để gia sư tự điều chỉnh (không chấm điểm). Mỗi mục: content (nhận xét) và example (tình huống cụ thể trong buổi, và một câu hỏi gia sư có thể dùng lần sau). Dựa trên: gia sư có đặt câu hỏi gợi mở không; có để học sinh tự giải thích cách làm không; có đưa đáp án hoặc cách giải quá sớm không; có khen đúng lúc khi học sinh làm đúng không. Viết giọng hỗ trợ. Không có căn cứ rõ thì trả mảng rỗng.
+            - keyPoints: 3–6 kiến thức quan trọng nhất cần nhớ từ buổi này, mỗi ý một câu ngắn.
+            - followUps: 0–6 việc cho buổi sau: ôn lại chỗ học sinh còn vướng, tài liệu gia sư đã hứa, lịch thay đổi; kiểm tra bài tập về nhà CHỈ KHI homework có giao bài. Chỉ ghi việc có căn cứ từ audio.
+
+            PHẦN 3 — zaloSummary: TIN ZALO gửi PHỤ HUYNH. Phụ huynh chỉ đọc phần này, nên phải cho phụ huynh biết rõ hôm nay con học như thế nào.
+            - content (ô "Nội dung"): hôm nay con học chủ đề gì, làm gì. Ví dụ: "Con học giải bất phương trình bậc nhất một ẩn và luyện 6 bài từ dễ đến khó."
+            - homework (ô "Bài tập"): bài tập gia sư THẬT SỰ giao. Không có thì ghi đúng: "Không có bài tập về nhà."
+            - notes (ô "Ghi chú"): một điều con làm tốt và một điều con cần cải thiện, cụ thể. Ví dụ: "Con tự làm đúng 4 trên 6 bài. Con còn quên đổi chiều khi chia cho số âm, buổi sau sẽ luyện thêm phần này." Không có căn cứ thì ghi đúng: "Không có nhận xét thêm."
+            Quy tắc BẮT BUỘC cho 3 field này:
+            - Mỗi field 1–2 câu hoàn chỉnh, khoảng 100–160 ký tự, TUYỆT ĐỐI KHÔNG quá 180 ký tự (tính cả dấu cách). Ít nội dung thì viết ngắn hơn.
+            - Chỉ văn bản thuần: không markdown, không gạch đầu dòng, không ký hiệu toán, không emoji, không xuống dòng.
             """;
+        var prompt = BuildReportContextLine(context) + instructions;
 
+        var stringArray = new GeminiSchema { Type = "ARRAY", Items = new() { Type = "STRING" } };
         var schema = new GeminiSchema
         {
             Type = "OBJECT",
@@ -320,10 +318,57 @@ public class GeminiVideoAnalysisService : IGeminiVideoAnalysisService
                     Properties = new Dictionary<string, GeminiSchema>
                     {
                         ["summary"] = new() { Type = "STRING" },
-                        ["keyPoints"] = new() { Type = "ARRAY", Items = new() { Type = "STRING" } },
-                        ["followUps"] = new() { Type = "ARRAY", Items = new() { Type = "STRING" } }
+                        ["sections"] = new()
+                        {
+                            Type = "ARRAY",
+                            Items = new()
+                            {
+                                Type = "OBJECT",
+                                Properties = new Dictionary<string, GeminiSchema>
+                                {
+                                    ["title"] = new() { Type = "STRING" },
+                                    ["details"] = stringArray
+                                },
+                                Required = ["title", "details"]
+                            }
+                        },
+                        ["exercises"] = new()
+                        {
+                            Type = "ARRAY",
+                            Items = new()
+                            {
+                                Type = "OBJECT",
+                                Properties = new Dictionary<string, GeminiSchema>
+                                {
+                                    ["type"] = new() { Type = "STRING" },
+                                    ["result"] = new() { Type = "STRING", Enum = TutorMinutesExercise.Results },
+                                    ["note"] = new() { Type = "STRING" }
+                                },
+                                Required = ["type", "result"]
+                            }
+                        },
+                        ["strengths"] = stringArray,
+                        ["difficulties"] = stringArray,
+                        ["usefulNotes"] = stringArray,
+                        ["teachingNotes"] = new()
+                        {
+                            Type = "ARRAY",
+                            Items = new()
+                            {
+                                Type = "OBJECT",
+                                Properties = new Dictionary<string, GeminiSchema>
+                                {
+                                    ["content"] = new() { Type = "STRING" },
+                                    ["example"] = new() { Type = "STRING" }
+                                },
+                                Required = ["content", "example"]
+                            }
+                        },
+                        ["keyPoints"] = stringArray,
+                        ["followUps"] = stringArray
                     },
-                    Required = ["summary", "keyPoints", "followUps"]
+                    Required = ["summary", "sections", "exercises", "strengths", "difficulties", "usefulNotes",
+                        "teachingNotes", "keyPoints", "followUps"]
                 },
                 ["zaloSummary"] = new()
                 {
@@ -357,7 +402,7 @@ public class GeminiVideoAnalysisService : IGeminiVideoAnalysisService
         if (parsed.Homework == null || parsed.Homework.Trim().Length < minHomeworkLength)
             parsed.Homework = "Không đề cập giao bài tập.";
 
-        parsed.SessionMinutes = NormalizeSessionMinutes(parsed.SessionMinutes);
+        parsed.SessionMinutes = SessionMinutesNormalizer.Normalize(parsed.SessionMinutes);
         parsed.ZaloSummary = NormalizeZaloSummary(parsed.ZaloSummary);
 
         return parsed;
@@ -410,29 +455,13 @@ public class GeminiVideoAnalysisService : IGeminiVideoAnalysisService
         return text[..cut].TrimEnd(' ', ',', ';', ':') + "…";
     }
 
-    /// <summary>
-    /// Biên bản chỉ là phần phụ cho gia sư — model trả thiếu/sai thì bỏ qua chứ không làm hỏng cả báo cáo
-    /// gửi phụ huynh. JSON "keyPoints": null sẽ ghi đè giá trị mặc định của list nên phải chuẩn hoá lại;
-    /// đồng thời cắt bớt nếu model trả nhiều hơn giới hạn trong prompt (buổi dài dễ bị kể lể).
-    /// </summary>
-    private static TutorSessionMinutes? NormalizeSessionMinutes(TutorSessionMinutes? minutes)
+    /// <summary>Dòng đầu prompt: môn và lớp (không có tên học sinh) để AI gọi đúng tên kiến thức.</summary>
+    private static string BuildReportContextLine(TutorReportContext? context)
     {
-        if (minutes is null) return null;
-
-        static List<string> Clean(List<string>? items, int max) =>
-            (items ?? new List<string>())
-                .Where(i => !string.IsNullOrWhiteSpace(i))
-                .Select(i => i.Trim())
-                .Take(max)
-                .ToList();
-
-        minutes.Summary = string.IsNullOrWhiteSpace(minutes.Summary) ? null : minutes.Summary.Trim();
-        minutes.KeyPoints = Clean(minutes.KeyPoints, 6);
-        minutes.FollowUps = Clean(minutes.FollowUps, 5);
-
-        if (minutes.Summary is null && minutes.KeyPoints.Count == 0 && minutes.FollowUps.Count == 0)
-            return null;
-        return minutes;
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(context?.Subject)) parts.Add($"Môn: {context!.Subject!.Trim()}");
+        if (context?.Grade is short grade) parts.Add($"Lớp: {grade}");
+        return parts.Count == 0 ? string.Empty : $"Thông tin buổi học: {string.Join(" · ", parts)}\n\n";
     }
 
     public async Task<string> AskFollowUpAsync(
@@ -899,6 +928,8 @@ public class GeminiVideoAnalysisService : IGeminiVideoAnalysisService
         public string[]? Required { get; set; }
         /// <summary>Kiểu phần tử khi Type = "ARRAY".</summary>
         public GeminiSchema? Items { get; set; }
+        /// <summary>Giá trị cho phép khi Type = "STRING".</summary>
+        public string[]? Enum { get; set; }
     }
 
     private class GeminiGenerateContentResponse

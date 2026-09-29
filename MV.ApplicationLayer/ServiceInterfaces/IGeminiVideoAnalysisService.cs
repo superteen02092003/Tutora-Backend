@@ -41,7 +41,8 @@ namespace MV.ApplicationLayer.ServiceInterfaces
         Task DeleteBatchAsync(string batchName, CancellationToken ct = default);
 
         /// <summary>Sinh nội dung báo cáo có cấu trúc (structured JSON output) cho gia sư.</summary>
-        Task<TutorReportAiFillResult> GenerateTutorReportFieldsAsync(string fileUri, string mimeType, CancellationToken ct = default);
+        Task<TutorReportAiFillResult> GenerateTutorReportFieldsAsync(
+            string fileUri, string mimeType, TutorReportContext? context = null, CancellationToken ct = default);
 
         /// <summary>Trả lời câu hỏi tiếp theo dựa trên tóm tắt đã có + lịch sử hội thoại — không cần video nữa.</summary>
         Task<string> AskFollowUpAsync(
