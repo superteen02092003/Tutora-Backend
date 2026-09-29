@@ -49,7 +49,11 @@ public class RecorderAiService(
             await db.SaveChangesAsync();
 
             var fileUri = await EnsureGeminiFileAsync(lesson, CancellationToken.None);
-            var result = await geminiService.GenerateTutorReportFieldsAsync(fileUri, AudioMimeType, CancellationToken.None);
+            var grade = lesson.Studentid is Guid studentId
+                ? await db.RecorderStudents.Where(s => s.Studentid == studentId).Select(s => s.Grade).FirstOrDefaultAsync()
+                : null;
+            var context = new TutorReportContext(lesson.Subject, grade);
+            var result = await geminiService.GenerateTutorReportFieldsAsync(fileUri, AudioMimeType, context, CancellationToken.None);
 
             lesson.Airesult = JsonSerializer.Serialize(result);
             lesson.Aistatus = RecorderAiStatus.Completed;

@@ -97,6 +97,14 @@ public class AppRecordingSessionMinutes
     public List<string> KeyPoints { get; set; } = new();
     /// <summary>Việc gia sư cần làm/nhớ cho buổi sau.</summary>
     public List<string> FollowUps { get; set; } = new();
+    /// <summary>Diễn biến buổi học theo thứ tự.</summary>
+    public List<TutorMinutesSection> Sections { get; set; } = new();
+    /// <summary>Các bài đã làm (theo dạng bài) và kết quả.</summary>
+    public List<TutorMinutesExercise> Exercises { get; set; } = new();
+    public List<string> Strengths { get; set; } = new();
+    public List<string> Difficulties { get; set; } = new();
+    public List<string> UsefulNotes { get; set; } = new();
+    public List<TutorTeachingNote> TeachingNotes { get; set; } = new();
 }
 
 /// <summary>Link nghe lại có hạn.</summary>

@@ -580,7 +580,13 @@ public class AppRecordingService(
                 {
                     Summary = minutes.Summary,
                     KeyPoints = minutes.KeyPoints ?? new List<string>(),
-                    FollowUps = minutes.FollowUps ?? new List<string>()
+                    FollowUps = minutes.FollowUps ?? new List<string>(),
+                    Sections = minutes.Sections ?? new List<TutorMinutesSection>(),
+                    Exercises = minutes.Exercises ?? new List<TutorMinutesExercise>(),
+                    Strengths = minutes.Strengths ?? new List<string>(),
+                    Difficulties = minutes.Difficulties ?? new List<string>(),
+                    UsefulNotes = minutes.UsefulNotes ?? new List<string>(),
+                    TeachingNotes = minutes.TeachingNotes ?? new List<TutorTeachingNote>()
                 }
         };
     }

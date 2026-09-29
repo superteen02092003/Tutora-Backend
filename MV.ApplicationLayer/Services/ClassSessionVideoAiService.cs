@@ -407,7 +407,7 @@ public class ClassSessionVideoAiService(
             await db.SaveChangesAsync();
 
             var file = await EnsureUploadedFileAsync(job, CancellationToken.None);
-            var result = await geminiService.GenerateTutorReportFieldsAsync(file.Uri, AudioMimeType, CancellationToken.None);
+            var result = await geminiService.GenerateTutorReportFieldsAsync(file.Uri, AudioMimeType, context: null, CancellationToken.None);
 
             job.Resultjson = JsonSerializer.Serialize(result);
             job.Status = ClassSessionAiJobStatus.Completed;
