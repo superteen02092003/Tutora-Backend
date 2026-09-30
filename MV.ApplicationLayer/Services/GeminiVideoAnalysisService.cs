@@ -266,7 +266,7 @@ public class GeminiVideoAnalysisService : IGeminiVideoAnalysisService
         // Prompt v3 (2026-09-29): biên bản chỉ ghi dạng bài và kiến thức, không chép đề bài/con số — các lần
         // thử cho thấy model hay nghe nhầm hoặc bịa đề, và audio không chứa đề chỉ hiện trên màn hình.
         const string instructions = """
-            Bạn là trợ lý của gia sư trên nền tảng Tutora. Nghe kỹ toàn bộ bản ghi âm buổi học 1 kèm 1 và trả về JSON theo schema, viết bằng tiếng Việt.
+            Bạn là trợ lý của gia sư trên nền tảng TopTutor. Nghe kỹ toàn bộ bản ghi âm buổi học 1 kèm 1 và trả về JSON theo schema, viết bằng tiếng Việt.
 
             QUY TẮC CHUNG (áp dụng cho mọi phần):
             - CHỈ ghi điều thật sự có trong audio. Không suy đoán, không bịa. Phần nào không có căn cứ thì để trống (mảng rỗng) hoặc ghi đúng câu mặc định được chỉ định.

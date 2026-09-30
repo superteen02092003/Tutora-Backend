@@ -912,8 +912,8 @@ app.MapGet("/", () => Results.Content("""
     <html><head>
       <meta charset="UTF-8" />
       <meta name="zalo-platform-site-verification" content="JyEN0ewmJ0HRf9ePWhCF80Abl2_kqsbmDpGq" />
-      <title>Tutora API</title>
-    </head><body><p>Tutora API</p></body></html>
+      <title>TopTutor API</title>
+    </head><body><p>TopTutor API</p></body></html>
 """, HttpConstants.HtmlContentType));
 
 app.MapControllers();
