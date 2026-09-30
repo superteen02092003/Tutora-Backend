@@ -327,7 +327,7 @@ public class AiCreditService(
             Status = PaymentRequestStatus.Pending,
             AiCreditPackageid = package.Packageid,
             AiCreditUserid = buyerUserId,                  
-            Description = $"Thanh Toan Tutora AI Goi {package.Name}",
+            Description = $"TopTutor AI {package.Name}",
             Expiresat = now.AddHours(24),
             Createdat = now,
             Updatedat = now
@@ -339,7 +339,7 @@ public class AiCreditService(
             DateTime.SpecifyKind(paymentRequest.Expiresat!.Value, DateTimeKind.Utc)).ToUnixTimeSeconds();
 
         var link = await _linkFactory.CreatePaymentLink(
-            orderCode, amount, $"Thanh Toan Tutora AI Goi {package.Code}", expiredAtUnix);
+            orderCode, amount, $"TopTutor AI {package.Code}", expiredAtUnix);
 
         paymentRequest.Paymentlinkid = link.PaymentLinkId;
         paymentRequest.Checkouturl = link.CheckoutUrl;

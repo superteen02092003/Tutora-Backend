@@ -240,7 +240,7 @@ public class SupportMessageService : ISupportMessageService
                 await _notificationService.CreateNotificationAsync(new NotificationRequest
                 {
                     Userid = thread.Userid,
-                    Title = "Phản hồi từ Tutora",
+                    Title = "Phản hồi từ TopTutor",
                     Message = preview,
                     Type = NotificationType.SupportMessage,
                     Referenceid = thread.Supportthreadid.ToString(),

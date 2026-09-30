@@ -70,7 +70,7 @@ public class RecorderParentLinkService(
         var greeting = string.IsNullOrWhiteSpace(student.Parentname) ? "Chào anh/chị" : $"Chào {student.Parentname}";
         var share =
             $"{greeting}, em là {tutorName}, gia sư của {student.Fullname}. " +
-            "Sau mỗi buổi học em sẽ gửi báo cáo cho anh/chị qua Zalo (Tutora). " +
+            "Sau mỗi buổi học em sẽ gửi báo cáo cho anh/chị qua Zalo (TopTutor). " +
             $"Anh/chị bấm vào link này để nhận báo cáo nhé: {url}";
 
         return new RecorderParentInviteResponse
@@ -206,7 +206,7 @@ public class RecorderParentLinkService(
     {
         var claimedUid = request.IdByOA?.Trim() ?? string.Empty;
         if (claimedUid.Length == 0)
-            throw new RecorderZaloVerifyException("Anh/chị cần bấm \"Quan tâm\" OA Tutora để nhận báo cáo.");
+            throw new RecorderZaloVerifyException("Anh/chị cần bấm \"Quan tâm\" OA TopTutor để nhận báo cáo.");
 
         var appUserId = await zaloAuth.GetZaloAppUserIdAsync(request.AccessToken, _miniApp.SecretKey);
         var detail = await zaloOA.GetOAUserDetailAsync(claimedUid, ct);
@@ -223,7 +223,7 @@ public class RecorderParentLinkService(
                 throw new RecorderZaloVerifyException("Không xác minh được tài khoản Zalo. Anh/chị thử mở lại link nhé.");
             }
             if (!detail.IsFollower)
-                throw new RecorderZaloVerifyException("Anh/chị cần bấm \"Quan tâm\" OA Tutora để nhận báo cáo.");
+                throw new RecorderZaloVerifyException("Anh/chị cần bấm \"Quan tâm\" OA TopTutor để nhận báo cáo.");
 
             return (claimedUid, appUserId, detail.DisplayName, true);
         }

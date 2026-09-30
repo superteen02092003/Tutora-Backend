@@ -22,7 +22,7 @@ namespace MV.DomainLayer.Exceptions
 
         public AccountDeletionBlockedException(IReadOnlyList<string> blockers)
             : base("Chưa thể xoá tài khoản. " + string.Join(" ", blockers)
-                   + " Vui lòng xử lý xong hoặc liên hệ hỗ trợ (support@tutora.vn).")
+                   + " Vui lòng xử lý xong hoặc liên hệ hỗ trợ (support@toptutor.ai).")
         {
             Blockers = blockers;
         }

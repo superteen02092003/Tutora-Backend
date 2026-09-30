@@ -14,5 +14,5 @@ public class ResendSettings
     public string SenderEmail { get; set; } = string.Empty;
 
     /// <summary>Tên hiển thị của người gửi.</summary>
-    public string SenderName { get; set; } = "Tutora";
+    public string SenderName { get; set; } = "TopTutor";
 }
